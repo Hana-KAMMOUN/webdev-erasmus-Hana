@@ -7,8 +7,11 @@
     "doc": "docs"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "mcp": "node mcp-server/server.js"
+    "start": "node src/server.js",
+    "test": "node --test --test-concurrency=1 test/auth.test.js test/events.test.js",
+    "mcp": "node mcp-server/server.js",
+    "db:migrate": "node src/data/migrate.js",
+    "db:seed": "node src/data/seed.js"
   },
   "repository": {
     "type": "git",
@@ -20,5 +23,12 @@
   "bugs": {
     "url": "https://github.com/Hana-KAMMOUN/webdev-erasmus-Hana/issues"
   },
-  "homepage": "https://github.com/Hana-KAMMOUN/webdev-erasmus-Hana#readme"
+  "homepage": "https://github.com/Hana-KAMMOUN/webdev-erasmus-Hana#readme",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "connect-pg-simple": "^10.0.0",
+    "express": "^5.3.0",
+    "express-session": "^1.19.0",
+    "pg": "^8.23.1"
+  }
 }

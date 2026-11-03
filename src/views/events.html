@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Events - ClubEvents</title>
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <header>
+    <h1>ClubEvents</h1>
+    <div id="error-container" role="alert" style="color: red; margin-bottom: 0.5rem;"></div>
+    <button id="logout-btn">Sign Out</button>
+  </header>
+  <main class="container">
+    <h2>Upcoming Events</h2>
+    <div id="events-status" aria-live="polite">Loading events...</div>
+    <div id="events-error-container" role="alert" style="color: red; margin-bottom: 0.5rem; display: none;"></div>
+    <ul id="events-list" style="list-style: none; padding: 0;"></ul>
+  </main>
+  <script>
+    const logoutBtn = document.getElementById('logout-btn');
+    const errorContainer = document.getElementById('error-container');
+    const eventsStatus = document.getElementById('events-status');
+    const eventsErrorContainer = document.getElementById('events-error-container');
+    const eventsList = document.getElementById('events-list');
+    let isSigningOut = false;
+
+    async function fetchEvents() {
+      eventsStatus.textContent = 'Loading events...';
+      eventsStatus.style.display = 'block';
+      eventsErrorContainer.textContent = '';
+      eventsErrorContainer.style.display = 'none';
+      eventsList.innerHTML = '';
+
+      try {
+        const res = await fetch('/api/events');
+        if (res.status === 401) {
+          window.location.href = '/login';
+          return;
+        }
+        if (!res.ok) {
+          throw new Error('Failed to load events');
+        }
+        const events = await res.json();
+        if (!Array.isArray(events)) {
+          throw new Error('Invalid events response');
+        }
+
+        eventsStatus.style.display = 'none';
+
+        if (events.length === 0) {
+          eventsStatus.textContent = 'No upcoming events.';
+          eventsStatus.style.display = 'block';
+          return;
+        }
+
+        for (const ev of events) {
+          const li = document.createElement('li');
+          li.style.border = '1px solid #ccc';
+          li.style.padding = '1rem';
+          li.style.marginBottom = '1rem';
+          li.style.borderRadius = '4px';
+
+          const titleEl = document.createElement('h3');
+          titleEl.textContent = ev.title;
+          li.appendChild(titleEl);
+
+          const timeEl = document.createElement('p');
+          const dateObj = new Date(ev.start_time);
+          timeEl.textContent = 'Date: ' + (isNaN(dateObj) ? ev.start_time : dateObj.toLocaleString());
+          li.appendChild(timeEl);
+
+          const locEl = document.createElement('p');
+          locEl.textContent = 'Location: ' + ev.location;
+          li.appendChild(locEl);
+
+          const placesEl = document.createElement('p');
+          placesEl.textContent = 'Available Places: ' + ev.available_places;
+          li.appendChild(placesEl);
+
+          if (ev.description) {
+            const descEl = document.createElement('p');
+            descEl.textContent = ev.description;
+            li.appendChild(descEl);
+          }
+
+          eventsList.appendChild(li);
+        }
+      } catch (err) {
+        eventsStatus.style.display = 'none';
+        eventsList.innerHTML = '';
+
+        eventsErrorContainer.textContent = '';
+        const msgP = document.createElement('p');
+        msgP.textContent = 'Unable to load events. Please try again.';
+        eventsErrorContainer.appendChild(msgP);
+
+        const retryBtn = document.createElement('button');
+        retryBtn.textContent = 'Retry';
+        retryBtn.addEventListener('click', fetchEvents);
+        eventsErrorContainer.appendChild(retryBtn);
+
+        eventsErrorContainer.style.display = 'block';
+      }
+    }
+
+    fetchEvents();
+
+    logoutBtn.addEventListener('click', async () => {
+      if (isSigningOut) return;
+
+      errorContainer.textContent = '';
+      isSigningOut = true;
+      logoutBtn.disabled = true;
+      logoutBtn.textContent = 'Signing out…';
+
+      try {
+        const tokenRes = await fetch('/api/csrf-token');
+        if (!tokenRes.ok) {
+          throw new Error('Unable to fetch security token');
+        }
+        const tokenData = await tokenRes.json();
+        const csrfToken = tokenData.csrfToken;
+        if (typeof csrfToken !== 'string' || csrfToken.trim() === '') {
+          throw new Error('Unable to fetch security token');
+        }
+
+        const res = await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: {
+            'x-csrf-token': csrfToken
+          }
+        });
+
+        if (!res.ok) {
+          throw new Error('Logout failed');
+        }
+
+        window.location.href = '/login';
+      } catch (err) {
+        errorContainer.textContent = 'Unable to sign out. Please try again.';
+        isSigningOut = false;
+        logoutBtn.disabled = false;
+        logoutBtn.textContent = 'Sign Out';
+      }
+    });
+  </script>
+</body>
+</html>
